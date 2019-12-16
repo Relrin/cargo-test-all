@@ -2,7 +2,7 @@ use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 #[structopt(
-    name = "test-all",
+    name = "cargo-test-all",
     version = "0.1.0",
     about = "Cargo extension for running tests of the used dependencies",
 )]
