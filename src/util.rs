@@ -5,13 +5,13 @@ use rustc_serialize::json::Json;
 
 use crate::error::{ErrorKind, Result};
 
-fn get_config() -> Result<()> {
+pub fn get_config() -> Result<()> {
     let path = get_config_path()?;
     println!("{:?}", path);
     Ok(())
 }
 
-fn get_config_path() -> Result<String> {
+pub fn get_config_path() -> Result<String> {
     let output = Command::new("cargo")
          .arg("locate-project")
          .output()
