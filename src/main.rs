@@ -14,7 +14,8 @@ fn main() {
         .only
         .unwrap_or(String::from(""))
         .split(",")
-        .map(|s| s.to_string())
+        .map(|s| s.to_string().trim().to_string())
+        .filter(|s| !s.is_empty())
         .collect();
 
     let options = TestOptions {
