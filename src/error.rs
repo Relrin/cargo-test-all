@@ -1,10 +1,10 @@
 use std::fmt;
+use std::io::Error as IoError;
 use std::result;
 
 use failure::{Backtrace, Context, Fail};
 
 pub type Result<T> = result::Result<T, Error>;
-
 
 #[derive(Debug)]
 pub struct Error {
@@ -36,22 +36,16 @@ impl fmt::Display for Error {
 #[derive(Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
     #[fail(display = "I/O error: {}", reason)]
-    Io {
-        reason: String,
-    },
-    #[fail(display = "Passed an invalid UTF-8 value: {:?} at index {}", value, index)]
-    Utf8 {
-        value: Vec<u8>,
-        index: usize,
-    },
+    Io { reason: String },
+    #[fail(
+        display = "Passed an invalid UTF-8 value: {:?} at index {}",
+        value, index
+    )]
+    Utf8 { value: Vec<u8>, index: usize },
     #[fail(display = "Command raised an error: {}", description)]
-    InvalidCommand {
-        description: String,
-    },
+    InvalidCommand { description: String },
     #[fail(display = "{}", description)]
-    Other {
-        description: String,
-    },
+    Other { description: String },
 }
 
 impl From<ErrorKind> for Error {
@@ -63,5 +57,13 @@ impl From<ErrorKind> for Error {
 impl From<Context<ErrorKind>> for Error {
     fn from(inner: Context<ErrorKind>) -> Error {
         Error { inner }
+    }
+}
+
+impl From<IoError> for Error {
+    fn from(err: IoError) -> Error {
+        Error::from(ErrorKind::Io {
+            reason: format!("{}", err),
+        })
     }
 }

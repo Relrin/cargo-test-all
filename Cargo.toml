@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 cargo = "0.37.0"
 cargo-clone = "0.1.3"
+cargo-lock = "3.0.0"
 failure = "0.1.6"
 rustc-serialize = "0.3"
 structopt = "0.3.5"

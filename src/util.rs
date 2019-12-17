@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use failure::ResultExt;
@@ -6,7 +6,7 @@ use rustc_serialize::json::Json;
 
 use crate::error::{ErrorKind, Result};
 
-pub fn get_project_path() -> Result<String> {
+pub fn get_cargo_lock_path() -> Result<PathBuf> {
     let output = Command::new("cargo")
         .arg("locate-project")
         .output()
@@ -26,12 +26,10 @@ pub fn get_project_path() -> Result<String> {
         ),
     })?;
     let cargo_toml_path = json["root"].as_string().unwrap_or("").to_string();
-    let project_directory = Path::new(&cargo_toml_path)
+    let cargo_lock_path = Path::new(&cargo_toml_path)
         .parent()
         .expect("An attempt to get a parent for the root directory.")
-        .to_str()
-        .expect("Passed an invalid UTF-8 string.")
-        .to_string();
+        .join("Cargo.lock");
 
-    Ok(project_directory)
+    Ok(cargo_lock_path.to_path_buf())
 }

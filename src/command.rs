@@ -1,25 +1,65 @@
-use std::sync::{Arc, Mutex};
+use std::path::Path;
 
-use crate::error::Result;
-use crate::util::get_project_path;
+use cargo_lock::lockfile::Lockfile;
+use failure::ResultExt;
+
+use crate::error::{ErrorKind, Result};
+use crate::util::get_cargo_lock_path;
 
 enum DependencyTypeEnum {
     CratesIo,
-    Git,
+    Git(SourceOptions),
+    GitLab(SourceOptions),
+    BitBucket(SourceOptions),
     Local,
+}
+
+struct SourceOptions {
+    branch: Option<String>,
+    tag: Option<String>,
+    commit: Option<String>,
 }
 
 struct Crate {
     name: String,
-    version: String,
     path: String,
     dependency_type: DependencyTypeEnum,
 }
 
 struct CrateList {
-    all: Arc<Mutex<Vec<Crate>>>,
-    passed: Arc<Mutex<Vec<Crate>>>,
-    failed: Arc<Mutex<Vec<Crate>>>,
+    all: Vec<Crate>,
+    passed: Vec<Crate>,
+    failed: Vec<Crate>,
+}
+
+impl CrateList {
+    pub fn load(path: &Path) -> Result<Self> {
+        let cargo_lock = Lockfile::load(path).with_context(|err| {
+            let message = format!("Can't parse Cargo.lock file. Reason: {:?}", err);
+            ErrorKind::Io { reason: message }
+        })?;
+
+        Ok(CrateList {
+            all: Vec::new(),
+            passed: Vec::new(),
+            failed: Vec::new(),
+        })
+    }
+
+    pub fn with_filter_crates(mut self, test_only: &Vec<String>) -> Self {
+        match test_only.is_empty() {
+            true => (),
+            false => {
+                self.all = self
+                    .all
+                    .into_iter()
+                    .filter(|obj| test_only.contains(&obj.name))
+                    .collect();
+            }
+        };
+
+        self
+    }
 }
 
 pub struct TestOptions {
@@ -28,14 +68,7 @@ pub struct TestOptions {
 }
 
 pub fn test_crates(options: &TestOptions) -> Result<()> {
-    let path = get_project_path()?;
-    println!("{:?}", path);
-
-    let tested_crates = CrateList {
-        all: Arc::new(Mutex::new(Vec::new())),
-        passed: Arc::new(Mutex::new(Vec::new())),
-        failed: Arc::new(Mutex::new(Vec::new())),
-    };
-
+    let cargo_lock_path = get_cargo_lock_path()?;
+    let crates = CrateList::load(cargo_lock_path.as_path())?.with_filter_crates(&options.test_only);
     Ok(())
 }
