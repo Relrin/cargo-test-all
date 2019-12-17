@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use cargo_lock::lockfile::Lockfile;
+use cargo_lock::package::Source;
 use failure::ResultExt;
 
 use crate::error::{ErrorKind, Result};
@@ -39,8 +40,20 @@ impl CrateList {
             ErrorKind::Io { reason: message }
         })?;
 
+        // TODO: Implement parsing source type
+        // TODO: Implement From<Package> for Crate ...
+        let used_crates = cargo_lock
+            .packages
+            .iter()
+            .map(|package| Crate {
+                name: package.name.as_str().to_string(),
+                path: package.source.unwrap_or(Source(String::from(""))).unwrap(),
+                dependency_type: DependencyTypeEnum::CratesIo,
+            })
+            .collect();
+
         Ok(CrateList {
-            all: Vec::new(),
+            all: used_crates,
             passed: Vec::new(),
             failed: Vec::new(),
         })
