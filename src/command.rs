@@ -1,29 +1,61 @@
 use std::path::Path;
+use std::sync::mpsc::channel;
 
 use cargo::core::{Dependency, GitReference};
+use workerpool::thunk::{Thunk, ThunkWorker};
+use workerpool::Pool;
 
-use crate::error::Result;
+use crate::error::{ErrorKind, Result};
 use crate::util::{get_project_location, load_cargo_toml};
+use crate::worker::run_crate_tests;
 
 #[derive(Debug, Clone)]
-enum DependencyTypeEnum {
+pub enum DependencyTypeEnum {
     CratesIo,
     Git(SourceOptions),
     Local,
 }
 
 #[derive(Debug, Clone)]
-struct SourceOptions {
+pub struct SourceOptions {
     branch: Option<String>,
     tag: Option<String>,
     commit: Option<String>,
 }
 
+impl SourceOptions {
+    pub fn get_branch(&self) -> Option<String> {
+        self.branch.clone()
+    }
+
+    pub fn get_tag(&self) -> Option<String> {
+        self.tag.clone()
+    }
+
+    pub fn get_commit(&self) -> Option<String> {
+        self.commit.clone()
+    }
+}
+
 #[derive(Debug, Clone)]
-struct Crate {
+pub struct Crate {
     name: String,
     path: String,
     dependency_type: DependencyTypeEnum,
+}
+
+impl Crate {
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+
+    pub fn get_path(&self) -> String {
+        self.path.clone()
+    }
+
+    pub fn get_dependency_type(&self) -> DependencyTypeEnum {
+        self.dependency_type.clone()
+    }
 }
 
 impl From<Dependency> for Crate {
@@ -69,10 +101,9 @@ impl From<Dependency> for Crate {
 }
 
 #[derive(Debug, Clone)]
-struct CrateList {
-    all: Vec<Crate>,
-    passed: Vec<Crate>,
-    failed: Vec<Crate>,
+pub struct CrateList {
+    all: Box<Vec<Crate>>,
+    failed: Box<Vec<ErrorKind>>,
 }
 
 impl CrateList {
@@ -87,9 +118,8 @@ impl CrateList {
             .collect::<Vec<Crate>>();
 
         Ok(CrateList {
-            all: used_crates,
-            passed: Vec::new(),
-            failed: Vec::new(),
+            all: Box::new(used_crates),
+            failed: Box::new(Vec::new()),
         })
     }
 
@@ -97,27 +127,73 @@ impl CrateList {
         match test_only.is_empty() {
             true => (),
             false => {
-                self.all = self
-                    .all
-                    .into_iter()
-                    .filter(|obj| test_only.contains(&obj.name))
-                    .collect();
+                self.all = Box::new(
+                    self.all
+                        .into_iter()
+                        .filter(|obj| test_only.contains(&obj.name))
+                        .collect(),
+                );
             }
         };
 
         self
     }
+
+    pub fn get_tested_crates_list(&self) -> &Box<Vec<Crate>> {
+        &self.all
+    }
+
+    pub fn get_failed_crates(&self) -> &Box<Vec<ErrorKind>> {
+        &self.failed
+    }
+
+    pub fn append_error(&mut self, error: &ErrorKind) {
+        self.failed.push(error.clone());
+    }
+
+    pub fn has_failed_tests(&self) -> bool {
+        !self.failed.is_empty()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub struct TestOptions {
-    pub threads: u8,
+    pub threads: usize,
     pub test_only: Vec<String>,
 }
 
 pub fn test_crates(options: &TestOptions) -> Result<()> {
     let project_location = get_project_location()?;
-    let crates =
+    let mut crate_list =
         CrateList::load(project_location.as_path())?.with_filter_crates(&options.test_only);
+
+    let tested_crates = crate_list.get_tested_crates_list();
+    let total_crates = tested_crates.len();
+    let pool = Pool::<ThunkWorker<Result<Crate>>>::new(options.threads);
+    let (tx, rx) = channel();
+    for used_crate in tested_crates.clone().into_iter() {
+        pool.execute_to(tx.clone(), Thunk::of(move || run_crate_tests(used_crate)));
+    }
+
+    rx.iter()
+        .take(tested_crates.len())
+        .filter(|response| response.is_err())
+        .for_each(|response| {
+            let error = response.unwrap_err();
+            let error_kind = error.kind();
+            crate_list.append_error(error_kind);
+        });
+
+    match crate_list.has_failed_tests() {
+        true => {
+            let failed_crates = crate_list.get_failed_crates();
+            println!("Failed {} of {} crates.", failed_crates.len(), total_crates);
+            for error in failed_crates.iter() {
+                println!("{}", error)
+            }
+        }
+        false => println!("Well done! All crates work correctly."),
+    }
+
     Ok(())
 }

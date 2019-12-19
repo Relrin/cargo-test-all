@@ -44,6 +44,14 @@ pub enum ErrorKind {
     Utf8 { value: Vec<u8>, index: usize },
     #[fail(display = "Command raised an error: {}", description)]
     InvalidCommand { description: String },
+    #[fail(
+        display = "Tests for the {} crate are failing. Output: \n{:#?}",
+        crate_name, output
+    )]
+    TestsFailure {
+        crate_name: String,
+        output: Vec<String>,
+    },
     #[fail(display = "{}", description)]
     Other { description: String },
 }

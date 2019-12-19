@@ -4,7 +4,7 @@ use structopt::StructOpt;
 #[structopt(
     name = "cargo-test-all",
     version = "0.1.0",
-    about = "Cargo extension for running tests of the used dependencies",
+    about = "Cargo extension for running tests of the used dependencies"
 )]
 pub struct CliOptions {
     #[structopt(
@@ -13,10 +13,10 @@ pub struct CliOptions {
         help = "An amount of concurrent threads for testing crates.",
         default_value = "1"
     )]
-    pub threads: u8,
+    pub threads: usize,
     #[structopt(
         long = "only",
-        help = "List of certain crates for testing, separated by comma.",
+        help = "List of certain crates for testing, separated by comma."
     )]
-    pub only: Option<String>
+    pub only: Option<String>,
 }

@@ -2,6 +2,7 @@ mod cli;
 mod command;
 mod error;
 mod util;
+mod worker;
 
 use structopt::StructOpt;
 
