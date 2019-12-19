@@ -1,22 +1,9 @@
 use std::path::Path;
-use std::str::FromStr;
 
-use cargo_lock::lockfile::Lockfile;
-use cargo_lock::package::Source;
-use failure::ResultExt;
-use lazy_static::lazy_static;
-use regex::Regex;
+use cargo::core::{Dependency, GitReference};
 
-use crate::error::{ErrorKind, Result};
-use crate::util::get_cargo_lock_path;
-use cargo_lock::Package;
-
-lazy_static! {
-    static ref URL_REGEX: Regex = Regex::new(
-        r"(?P<source_type>.+)\+(?P<url>[^\?\#]+)\??((tag=(?P<tag>[^#]+))?(#(?P<commit>.+)))?"
-    )
-    .unwrap();
-}
+use crate::error::Result;
+use crate::util::{get_project_location, load_cargo_toml};
 
 #[derive(Debug, Clone)]
 enum DependencyTypeEnum {
@@ -27,6 +14,7 @@ enum DependencyTypeEnum {
 
 #[derive(Debug, Clone)]
 struct SourceOptions {
+    branch: Option<String>,
     tag: Option<String>,
     commit: Option<String>,
 }
@@ -38,38 +26,43 @@ struct Crate {
     dependency_type: DependencyTypeEnum,
 }
 
-impl From<Package> for Crate {
-    fn from(package: Package) -> Self {
-        let mut source = package
-            .source
-            .unwrap_or(Source::from_str("").unwrap())
-            .to_string();
+impl From<Dependency> for Crate {
+    fn from(dependency: Dependency) -> Self {
+        let name = dependency.package_name().to_string();
+        let source_id = dependency.source_id();
+        let mut path = source_id.url().to_string();
 
-        let dependency_type = match URL_REGEX.captures(&source.clone()) {
-            Some(captures) => match &captures["source_type"] {
-                "git" => {
-                    source = match captures.name("url") {
-                        Some(value) => value.as_str().to_string(),
-                        _ => source,
-                    };
-                    let tag = match captures.name("tag") {
-                        Some(value) => Some(value.as_str().to_string()),
-                        _ => None,
-                    };
-                    let commit = match captures.name("commit") {
-                        Some(value) => Some(value.as_str().to_string()),
-                        _ => None,
-                    };
-                    DependencyTypeEnum::Git(SourceOptions { tag, commit })
-                }
-                _ => DependencyTypeEnum::CratesIo,
-            },
-            None => DependencyTypeEnum::Local,
+        let is_git = source_id.is_git();
+        let is_registry = source_id.is_registry();
+        let is_local = source_id.is_path();
+        let dependency_type = match (is_registry, is_git, is_local) {
+            (true, _, _) => DependencyTypeEnum::CratesIo,
+            (_, true, _) => {
+                let mut branch = None;
+                let mut tag = None;
+                let mut commit = None;
+                match source_id.git_reference() {
+                    Some(GitReference::Branch(value)) => branch = Some(value.to_owned()),
+                    Some(GitReference::Tag(value)) => tag = Some(value.to_owned()),
+                    Some(GitReference::Rev(value)) => commit = Some(value.to_owned()),
+                    _ => (),
+                };
+                DependencyTypeEnum::Git(SourceOptions {
+                    branch,
+                    tag,
+                    commit,
+                })
+            }
+            (_, _, true) => {
+                path = path.trim_start_matches("file://").to_string();
+                DependencyTypeEnum::Local
+            }
+            (_, _, _) => DependencyTypeEnum::CratesIo,
         };
 
         Crate {
-            name: package.name.as_str().to_string(),
-            path: format!("{}", source),
+            name,
+            path,
             dependency_type,
         }
     }
@@ -84,17 +77,13 @@ struct CrateList {
 
 impl CrateList {
     pub fn load(path: &Path) -> Result<Self> {
-        let cargo_lock = Lockfile::load(path).with_context(|err| {
-            let message = format!("Can't parse Cargo.lock file. Reason: {:?}", err);
-            ErrorKind::Io { reason: message }
-        })?;
+        let cargo_toml_path = path.join("Cargo.toml");
+        let cargo_toml = load_cargo_toml(&cargo_toml_path)?;
 
-        // TODO: Filter by defined dependencies in Cargo.toml
-        // TODO: Get sources from Cargo.toml dependencies section when used local dependency
-        let used_crates = cargo_lock
-            .packages
+        let used_crates = cargo_toml
+            .dependencies()
             .into_iter()
-            .map(|package| Crate::from(package.to_owned()))
+            .map(|dependency| Crate::from(dependency.to_owned()))
             .collect::<Vec<Crate>>();
 
         Ok(CrateList {
@@ -127,7 +116,8 @@ pub struct TestOptions {
 }
 
 pub fn test_crates(options: &TestOptions) -> Result<()> {
-    let cargo_lock_path = get_cargo_lock_path()?;
-    let crates = CrateList::load(cargo_lock_path.as_path())?.with_filter_crates(&options.test_only);
+    let project_location = get_project_location()?;
+    let crates =
+        CrateList::load(project_location.as_path())?.with_filter_crates(&options.test_only);
     Ok(())
 }
