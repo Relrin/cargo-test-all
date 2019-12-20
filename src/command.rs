@@ -1,3 +1,5 @@
+use std::env::current_dir;
+use std::fs::create_dir_all;
 use std::path::Path;
 use std::sync::mpsc::channel;
 
@@ -183,6 +185,8 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
             let error_kind = error.kind();
             crate_list.append_error(error_kind);
         });
+
+    let current_directory = current_dir();
 
     match crate_list.has_failed_tests() {
         true => {
