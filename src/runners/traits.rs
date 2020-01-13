@@ -1,8 +1,9 @@
-use std::process::{Command, Stdio};
+use std::process::{Command, Output};
 
 use crate::command::Crate;
 use crate::error::{ErrorKind, Result};
 use failure::ResultExt;
+use rustc_serialize::json::JsonEvent::Error;
 
 pub trait TestRunner {
     fn new(dependency: &Crate) -> Self
@@ -15,15 +16,14 @@ pub trait TestRunner {
 
     fn teardown(&self) -> Result<()>;
 
-    fn run_cargo_command(&self, command: &str) -> Result<()> {
-        let mut process = Command::new("cargo")
+    fn run_cargo_command(&self, command: &str) -> Result<Output> {
+        let output = Command::new("cargo")
             .arg(command)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?;
-        process.wait().with_context(|err| ErrorKind::Io {
-            reason: format!("{}", err),
-        })?;
-        Ok(())
+            .output()
+            .with_context(|err| ErrorKind::Io {
+                reason: format!("{}", err),
+            })?;
+
+        Ok(output)
     }
 }

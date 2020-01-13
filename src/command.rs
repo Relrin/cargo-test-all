@@ -197,7 +197,8 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
             let failed_crates = crate_list.get_failed_crates();
             println!("Failed {} of {} crates.", failed_crates.len(), total_crates);
             for error in failed_crates.iter() {
-                println!("{}", error)
+                let message = format!("{}", error);
+                print!("{}", message);
             }
         }
         false => println!("Well done! All crates work correctly."),

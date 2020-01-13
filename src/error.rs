@@ -45,13 +45,10 @@ pub enum ErrorKind {
     #[fail(display = "Command raised an error: {}", description)]
     InvalidCommand { description: String },
     #[fail(
-        display = "Tests for the {} crate are failing. Output: \n{:#?}",
+        display = "Tests for the {} crate are failing. Output: \n{}",
         crate_name, output
     )]
-    TestsFailure {
-        crate_name: String,
-        output: Vec<String>,
-    },
+    TestsFailure { crate_name: String, output: String },
     #[fail(display = "{}", description)]
     Other { description: String },
 }
