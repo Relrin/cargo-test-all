@@ -1,15 +1,17 @@
-use std::env::current_dir;
+use std::env::{current_dir, current_exe};
 use std::fs::create_dir_all;
 use std::path::Path;
 use std::sync::mpsc::channel;
 
 use cargo::core::{Dependency, GitReference};
+use rm_rf::remove as remove_dir_all;
 use workerpool::thunk::{Thunk, ThunkWorker};
 use workerpool::Pool;
 
 use crate::error::{ErrorKind, Result};
 use crate::util::{get_project_location, load_cargo_toml};
 use crate::worker::run_crate_tests;
+use failure::ResultExt;
 
 #[derive(Debug, Clone)]
 pub enum DependencyTypeEnum {
@@ -169,6 +171,10 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
     let mut crate_list =
         CrateList::load(project_location.as_path())?.with_filter_crates(&options.test_only);
 
+    let current_directory = current_dir()?;
+    let temp_directory = current_directory.join("target/testing/deps");
+    create_dir_all(temp_directory.clone());
+
     let tested_crates = crate_list.get_tested_crates_list();
     let total_crates = tested_crates.len();
     let pool = Pool::<ThunkWorker<Result<Crate>>>::new(options.threads);
@@ -186,8 +192,6 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
             crate_list.append_error(error_kind);
         });
 
-    let current_directory = current_dir();
-
     match crate_list.has_failed_tests() {
         true => {
             let failed_crates = crate_list.get_failed_crates();
@@ -199,5 +203,9 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
         false => println!("Well done! All crates work correctly."),
     }
 
+    let temp_parent_directory = temp_directory.parent().unwrap();
+    remove_dir_all(temp_parent_directory).with_context(|err| ErrorKind::Io {
+        reason: format!("{}", err),
+    })?;
     Ok(())
 }
