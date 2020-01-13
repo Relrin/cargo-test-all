@@ -1,17 +1,13 @@
 use crate::command::Crate;
 use crate::error::{Error, ErrorKind, Result};
+use crate::runners::get_test_runner;
 
 pub fn run_crate_tests(used_crate: Crate) -> Result<Crate> {
-    // Clone project
+    let test_runner = get_test_runner(&used_crate);
 
-    // Cargo test
+    test_runner.setup()?;
+    test_runner.run_tests()?;
+    test_runner.teardown()?;
 
-    // Cleanup
-
-    Err(Error::from(ErrorKind::TestsFailure {
-        crate_name: used_crate.get_name(),
-        output: vec![String::from("YOLO")],
-    }))
-
-    //Ok(used_crate)
+    Ok(used_crate)
 }
