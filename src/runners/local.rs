@@ -1,7 +1,7 @@
 use std::env::set_current_dir;
 
 use crate::command::Crate;
-use crate::error::{Error, ErrorKind, Result};
+use crate::error::Result;
 use crate::runners::traits::TestRunner;
 
 pub struct LocalDependencyTestRunner {
@@ -23,15 +23,7 @@ impl TestRunner for LocalDependencyTestRunner {
     }
 
     fn run_tests(&self) -> Result<()> {
-        let output = self.run_cargo_command("test")?;
-
-        match output.status.success() {
-            true => Ok(()),
-            false => Err(Error::from(ErrorKind::TestsFailure {
-                crate_name: self.crate_name.to_owned(),
-                output: String::from_utf8_lossy(&output.stdout).to_string(),
-            })),
-        }
+        self.run_cargo_test_command()
     }
 
     fn teardown(&self) -> Result<()> {
