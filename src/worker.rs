@@ -1,5 +1,5 @@
 use crate::command::Crate;
-use crate::error::{Error, ErrorKind, Result};
+use crate::error::Result;
 use crate::runners::get_test_runner;
 
 pub fn run_crate_tests(used_crate: Crate) -> Result<Crate> {

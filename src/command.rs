@@ -1,4 +1,4 @@
-use std::env::{current_dir, current_exe};
+use std::env::{current_dir, set_current_dir};
 use std::fs::create_dir_all;
 use std::path::Path;
 use std::sync::mpsc::channel;
@@ -20,7 +20,7 @@ pub enum DependencyTypeEnum {
     Local,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SourceOptions {
     branch: Option<String>,
     tag: Option<String>,
@@ -171,9 +171,10 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
     let mut crate_list =
         CrateList::load(project_location.as_path())?.with_filter_crates(&options.test_only);
 
-    let current_directory = current_dir()?;
-    let temp_directory = current_directory.join("target/testing/deps");
-    create_dir_all(temp_directory.clone());
+    let parent_directory = current_dir()?;
+    let temp_directory = parent_directory.join("target/testing/deps");
+    create_dir_all(temp_directory.clone())?;
+    set_current_dir(temp_directory.clone())?;
 
     let tested_crates = crate_list.get_tested_crates_list();
     let total_crates = tested_crates.len();
@@ -198,12 +199,13 @@ pub fn test_crates(options: &TestOptions) -> Result<()> {
             println!("Failed {} of {} crates.", failed_crates.len(), total_crates);
             for error in failed_crates.iter() {
                 let message = format!("{}", error);
-                print!("{}", message);
+                println!("{}", message);
             }
         }
         false => println!("Well done! All crates work correctly."),
     }
 
+    set_current_dir(parent_directory)?;
     let temp_parent_directory = temp_directory.parent().unwrap();
     remove_dir_all(temp_parent_directory).with_context(|err| ErrorKind::Io {
         reason: format!("{}", err),
