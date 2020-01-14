@@ -3,6 +3,12 @@ name = "cargo-test-all"
 version = "0.1.0"
 authors = ["Valeryi Savich <relrin78@gmail.com>"]
 edition = "2018"
+license = "BSD-3-Clause"
+readme = "README.md"
+description = "Cargo extension for running tests of the used dependencies"
+homepage = "https://github.com/Relrin/cargo-test-all"
+repository = "https://github.com/Relrin/cargo-test-all"
+keywords = ["cargo", "cargo-commands", "testing"]
 
 [dependencies]
 cargo = "0.37.0"
