@@ -1,7 +1,7 @@
 mod cli;
 mod command;
 mod error;
-mod runners;
+pub mod runners;
 mod util;
 mod worker;
 
