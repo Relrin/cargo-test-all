@@ -1,4 +1,5 @@
 use std::env::{current_dir, set_current_dir};
+use std::path::PathBuf;
 use std::process::Command;
 
 use failure::ResultExt;
@@ -40,6 +41,10 @@ impl TestRunner for GitDependencyTestRunner {
     }
 
     fn setup(&self) -> Result<()> {
+        let target_directory = self.target_directory.clone();
+        let deps_directory = PathBuf::from(target_directory);
+        set_current_dir(deps_directory.parent().unwrap())?;
+
         let mut command_args = Vec::new();
 
         if let Some(branch) = self.source_options.get_branch() {
@@ -60,9 +65,6 @@ impl TestRunner for GitDependencyTestRunner {
         command_args.push("--git".to_string());
         command_args.push(self.url.clone());
 
-        command_args.push("--prefix".to_string());
-        command_args.push(self.target_directory.clone());
-
         let output = Command::new("cargo")
             .arg("clone")
             .args(&command_args)
@@ -73,7 +75,7 @@ impl TestRunner for GitDependencyTestRunner {
 
         match output.status.success() {
             true => {
-                set_current_dir(self.target_directory.clone()).unwrap();
+                set_current_dir(self.target_directory.clone())?;
                 Ok(())
             }
             false => Err(Error::from(ErrorKind::TestsFailure {

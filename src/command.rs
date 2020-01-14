@@ -15,7 +15,7 @@ use failure::ResultExt;
 
 #[derive(Debug, Clone)]
 pub enum DependencyTypeEnum {
-    CratesIo,
+    CratesIo(String),
     Git(SourceOptions),
     Local,
 }
@@ -72,7 +72,10 @@ impl From<Dependency> for Crate {
         let is_registry = source_id.is_registry();
         let is_local = source_id.is_path();
         let dependency_type = match (is_registry, is_git, is_local) {
-            (true, _, _) => DependencyTypeEnum::CratesIo,
+            (true, _, _) => {
+                let version = extract_version_from_dependency(&dependency);
+                DependencyTypeEnum::CratesIo(version)
+            }
             (_, true, _) => {
                 let mut branch = None;
                 let mut tag = None;
@@ -93,7 +96,7 @@ impl From<Dependency> for Crate {
                 path = path.trim_start_matches("file://").to_string();
                 DependencyTypeEnum::Local
             }
-            (_, _, _) => DependencyTypeEnum::CratesIo,
+            (_, _, _) => unreachable!(),
         };
 
         Crate {
@@ -101,6 +104,23 @@ impl From<Dependency> for Crate {
             path,
             dependency_type,
         }
+    }
+}
+
+fn extract_version_from_dependency(dependency: &Dependency) -> String {
+    let version = dependency
+        .version_req()
+        .to_string()
+        .replace("^", "")
+        .replace("~", "")
+        .replace("<", "")
+        .replace(">", "")
+        .replace("=", "");
+
+    match version.matches(".").count() {
+        0 => format!("{}.0.0", version),
+        1 => format!("{}.0", version),
+        _ => version,
     }
 }
 
