@@ -19,4 +19,6 @@ pub struct CliOptions {
         help = "List of certain crates for testing, separated by comma."
     )]
     pub only: Option<String>,
+    #[structopt(hidden = true)]
+    extra: Vec<String>,
 }

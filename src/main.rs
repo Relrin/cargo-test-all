@@ -11,8 +11,8 @@ use crate::cli::CliOptions;
 use crate::command::{test_crates, TestOptions};
 
 fn main() {
-    let command = CliOptions::from_args();
-    let test_only = command
+    let args = CliOptions::from_args();
+    let test_only = args
         .only
         .unwrap_or(String::from(""))
         .split(",")
@@ -21,7 +21,7 @@ fn main() {
         .collect();
 
     let options = TestOptions {
-        threads: command.threads,
+        threads: args.threads,
         test_only,
     };
     match test_crates(&options) {

@@ -8,7 +8,7 @@ readme = "README.md"
 description = "Cargo extension for running tests of the used dependencies"
 homepage = "https://github.com/Relrin/cargo-test-all"
 repository = "https://github.com/Relrin/cargo-test-all"
-keywords = ["cargo", "cargo-commands", "testing"]
+keywords = ["cargo", "cargo-commands", "cargo-subcommand", "testing"]
 
 [dependencies]
 cargo = "0.37.0"
