@@ -47,6 +47,9 @@ impl TestRunner for GitDependencyTestRunner {
 
         let mut command_args = Vec::new();
 
+        command_args.push("--prefix".to_string());
+        command_args.push(self.target_directory.clone());
+
         if let Some(branch) = self.source_options.get_branch() {
             command_args.push("--branch".to_string());
             command_args.push(branch.clone());
