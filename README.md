@@ -8,6 +8,11 @@ Cargo extension for running tests of the used dependencies
 
 # Installation
 For installation this executable use the following command in your terminal or shell:
+- Install the `cargo-clone`:
+```
+cargo install cargo-clone
+```
+- Install this extension itself:
 ```
 cargo install cargo-test-all
 ```
