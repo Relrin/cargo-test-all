@@ -48,13 +48,11 @@ impl TestRunner for CratesIoDependencyTestRunner {
 
         let mut command_args = Vec::new();
 
-        command_args.push("--prefix".to_string());
+        let crate_name_arg = format!("{0}@{1}", self.crate_name.clone(), self.version.clone());
+        command_args.push(crate_name_arg);
+
+        command_args.push("--".to_string());
         command_args.push(self.target_directory.clone());
-
-        command_args.push("--vers".to_string());
-        command_args.push(self.version.clone());
-
-        command_args.push(self.crate_name.clone());
 
         let output = Command::new("cargo")
             .arg("clone")

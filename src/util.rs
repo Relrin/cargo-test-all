@@ -11,13 +11,16 @@ use crate::error::{Error, ErrorKind, Result};
 
 pub fn load_cargo_toml(path: &Path) -> Result<Manifest> {
     let config = Config::default().expect("Unable to get config.");
-    let source_id = SourceId::for_path(path).with_context(|err| {
-        let message = format!(
-            "Can't generate SourceId for Cargo.toml file. Reason: {:?}",
-            err
-        );
-        ErrorKind::Io { reason: message }
-    })?;
+    let source_id = match SourceId::for_path(path) {
+        Ok(id) => id,
+        Err(err) => {
+            let message = format!(
+                "Can't generate SourceId for Cargo.toml file. Reason: {:?}",
+                err
+            );
+            return Err(Error::from(ErrorKind::Io { reason: message }));
+        }
+    };
 
     let (manifest, _path) = read_manifest(path, source_id, &config).with_context(|err| {
         let message = format!("Can't read Cargo.toml file. Reason: {:?}", err);
